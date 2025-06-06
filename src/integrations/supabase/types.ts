@@ -9,7 +9,198 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      favorite_jobs: {
+        Row: {
+          created_at: string
+          id: number
+          job_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          job_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          job_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_jobs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          company: string
+          created_by: string | null
+          description: string
+          external_url: string | null
+          id: number
+          location: string
+          posted_at: string
+          salary_range: string | null
+          tags: string[]
+          title: string
+        }
+        Insert: {
+          company: string
+          created_by?: string | null
+          description: string
+          external_url?: string | null
+          id?: number
+          location: string
+          posted_at?: string
+          salary_range?: string | null
+          tags: string[]
+          title: string
+        }
+        Update: {
+          company?: string
+          created_by?: string | null
+          description?: string
+          external_url?: string | null
+          id?: number
+          location?: string
+          posted_at?: string
+          salary_range?: string | null
+          tags?: string[]
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          first_name: string
+          id: string
+          last_name: string
+          role: string
+          settings: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_name: string
+          id?: string
+          last_name: string
+          role?: string
+          settings?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          role?: string
+          settings?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      questions: {
+        Row: {
+          correct: number | null
+          id: number
+          options: string[]
+          quiz_id: number
+          text: string
+        }
+        Insert: {
+          correct?: number | null
+          id?: number
+          options: string[]
+          quiz_id: number
+          text: string
+        }
+        Update: {
+          correct?: number | null
+          id?: number
+          options?: string[]
+          quiz_id?: number
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_results: {
+        Row: {
+          created_at: string
+          id: number
+          quiz_id: number
+          result_data: Json
+          score: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          quiz_id: number
+          result_data: Json
+          score: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          quiz_id?: number
+          result_data?: Json
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_results_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

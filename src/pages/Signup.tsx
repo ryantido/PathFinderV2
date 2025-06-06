@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuthStore } from "@/context/authStore";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SignupForm {
   firstName: string;
@@ -24,7 +24,6 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuthStore();
   const { toast } = useToast();
 
   const {
@@ -39,27 +38,60 @@ const Signup = () => {
   const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
     
-    // Simulation d'une inscription (à remplacer par une vraie API)
-    setTimeout(() => {
-      const newUser = {
-        id: Math.floor(Math.random() * 1000),
+    try {
+      const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        role: "USER" as const,
-        settings: {
-          privateMode: false,
-        },
-      };
-
-      login(newUser);
-      toast({
-        title: "Compte créé avec succès",
-        description: "Bienvenue sur Pathfinder Job ! Vous pouvez maintenant commencer votre quiz d'orientation.",
+        password: data.password,
+        options: {
+          data: {
+            first_name: data.firstName,
+            last_name: data.lastName,
+          }
+        }
       });
-      navigate("/quiz");
+
+      if (error) {
+        toast({
+          title: "Erreur lors de l'inscription",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (authData.user) {
+        // Créer le profil dans la table profiles
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: authData.user.id,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            role: 'USER',
+            settings: { privateMode: false }
+          });
+
+        if (profileError) {
+          console.error('Erreur lors de la création du profil:', profileError);
+        }
+
+        toast({
+          title: "Compte créé avec succès",
+          description: "Vérifiez votre email pour confirmer votre compte, puis connectez-vous.",
+        });
+        navigate("/login");
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'inscription:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

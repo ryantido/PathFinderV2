@@ -11,24 +11,39 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/context/authStore";
-import Link from "next/link";
-import { useRouter } from "next/router";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuthStore();
-  const router = useRouter();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
 
-  const handleLogout = () => {
-    logout();
-    router.push("/");
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      logout();
+      toast({
+        title: "Déconnexion réussie",
+        description: "À bientôt sur Pathfinder Job !",
+      });
+      navigate("/");
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la déconnexion",
+        variant: "destructive",
+      });
+    }
   };
 
   const navigationItems = [
     { href: "/", label: "Accueil" },
     { href: "/quiz", label: "Quiz" },
     { href: "/jobs", label: "Offres" },
-    { href: "/about", label: "À Propos" }
   ];
 
   return (
@@ -36,7 +51,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" passHref>
+          <Link to="/">
             <motion.div 
               className="flex items-center space-x-2 cursor-pointer"
               whileHover={{ scale: 1.05 }}
@@ -54,16 +69,16 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navigationItems.map((item) => (
-              <Link key={item.href} href={item.href} passHref>
-                <motion.a
-                  className={`text-slate-600 hover:text-blue-600 font-medium transition-colors ${
-                    router.pathname === item.href ? "text-blue-600" : ""
+              <Link key={item.href} to={item.href}>
+                <motion.span
+                  className={`text-slate-600 hover:text-blue-600 font-medium transition-colors cursor-pointer ${
+                    location.pathname === item.href ? "text-blue-600" : ""
                   }`}
                   whileHover={{ y: -2 }}
                   transition={{ duration: 0.2 }}
                 >
                   {item.label}
-                </motion.a>
+                </motion.span>
               </Link>
             ))}
           </div>
@@ -87,21 +102,15 @@ const Navbar = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-white/95 backdrop-blur-md border-slate-200/50">
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center space-x-2">
+                    <Link to="/profile" className="flex items-center space-x-2">
                       <User className="w-4 h-4" />
                       <span>Mon Profil</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/favorites" className="flex items-center space-x-2">
+                    <Link to="/jobs" className="flex items-center space-x-2">
                       <Briefcase className="w-4 h-4" />
                       <span>Mes Favoris</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center space-x-2">
-                      <Settings className="w-4 h-4" />
-                      <span>Paramètres</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -113,12 +122,12 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-3">
-                <Link href="/login" passHref>
+                <Link to="/login">
                   <Button variant="ghost" className="text-slate-600 hover:text-blue-600">
                     Connexion
                   </Button>
                 </Link>
-                <Link href="/signup" passHref>
+                <Link to="/signup">
                   <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     S'inscrire
                   </Button>
@@ -149,15 +158,15 @@ const Navbar = () => {
           >
             <div className="flex flex-col space-y-4">
               {navigationItems.map((item) => (
-                <Link key={item.href} href={item.href} passHref>
-                  <a
-                    className={`text-slate-600 hover:text-blue-600 font-medium transition-colors px-2 py-1 ${
-                      router.pathname === item.href ? "text-blue-600" : ""
+                <Link key={item.href} to={item.href}>
+                  <span
+                    className={`text-slate-600 hover:text-blue-600 font-medium transition-colors px-2 py-1 block ${
+                      location.pathname === item.href ? "text-blue-600" : ""
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.label}
-                  </a>
+                  </span>
                 </Link>
               ))}
               
@@ -171,15 +180,10 @@ const Navbar = () => {
                       {user.firstName} {user.lastName}
                     </span>
                   </div>
-                  <Link href="/profile" passHref>
-                    <a className="block px-2 py-1 text-slate-600 hover:text-blue-600" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to="/profile">
+                    <span className="block px-2 py-1 text-slate-600 hover:text-blue-600" onClick={() => setMobileMenuOpen(false)}>
                       Mon Profil
-                    </a>
-                  </Link>
-                  <Link href="/settings" passHref>
-                    <a className="block px-2 py-1 text-slate-600 hover:text-blue-600" onClick={() => setMobileMenuOpen(false)}>
-                      Paramètres
-                    </a>
+                    </span>
                   </Link>
                   <button
                     onClick={() => {
@@ -193,7 +197,7 @@ const Navbar = () => {
                 </div>
               ) : (
                 <div className="border-t border-slate-200/50 pt-4 space-y-2">
-                  <Link href="/login" passHref>
+                  <Link to="/login">
                     <Button 
                       variant="ghost" 
                       className="w-full justify-start text-slate-600"
@@ -202,7 +206,7 @@ const Navbar = () => {
                       Connexion
                     </Button>
                   </Link>
-                  <Link href="/signup" passHref>
+                  <Link to="/signup">
                     <Button 
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
                       onClick={() => setMobileMenuOpen(false)}

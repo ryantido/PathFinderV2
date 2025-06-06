@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/context/authStore";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LoginForm {
   email: string;
@@ -32,27 +33,91 @@ const Login = () => {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     
-    // Simulation d'une connexion (à remplacer par une vraie API)
-    setTimeout(() => {
-      const mockUser = {
-        id: 1,
+    try {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
-        firstName: "John",
-        lastName: "Doe",
-        role: "USER" as const,
-        settings: {
-          privateMode: false,
-        },
-      };
-
-      login(mockUser);
-      toast({
-        title: "Connexion réussie",
-        description: "Bienvenue sur Pathfinder Job !",
+        password: data.password,
       });
-      navigate("/");
+
+      if (error) {
+        toast({
+          title: "Erreur de connexion",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (authData.user) {
+        // Récupérer le profil depuis la table profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', authData.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Erreur lors de la récupération du profil:', profileError);
+          // Créer un profil par défaut si nécessaire
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: authData.user.id,
+              first_name: authData.user.user_metadata?.first_name || 'Utilisateur',
+              last_name: authData.user.user_metadata?.last_name || '',
+              role: 'USER',
+              settings: {}
+            });
+
+          if (!insertError) {
+            // Récupérer le profil nouvellement créé
+            const { data: newProfileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', authData.user.id)
+              .single();
+
+            if (newProfileData) {
+              const user = {
+                id: authData.user.id,
+                email: authData.user.email!,
+                firstName: newProfileData.first_name,
+                lastName: newProfileData.last_name,
+                role: newProfileData.role as 'USER' | 'ADMIN',
+                settings: newProfileData.settings || { privateMode: false },
+              };
+              login(user);
+            }
+          }
+        } else {
+          const user = {
+            id: authData.user.id,
+            email: authData.user.email!,
+            firstName: profileData.first_name,
+            lastName: profileData.last_name,
+            role: profileData.role as 'USER' | 'ADMIN',
+            settings: profileData.settings || { privateMode: false },
+          };
+          login(user);
+        }
+
+        toast({
+          title: "Connexion réussie",
+          description: "Bienvenue sur Pathfinder Job !",
+        });
+        navigate("/");
+      }
+    } catch (error) {
+      console.error('Erreur lors de la connexion:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -185,16 +250,6 @@ const Login = () => {
                     Créer un compte
                   </Link>
                 </p>
-              </div>
-
-              {/* Forgot password */}
-              <div className="text-center">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  Mot de passe oublié ?
-                </Link>
               </div>
             </CardContent>
           </Card>
