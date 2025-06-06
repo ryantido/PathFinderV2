@@ -26,11 +26,13 @@ function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Token manquant' });
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Token invalide' });
+  try {
+    const user = jwt.verify(token, JWT_SECRET); // version synchrone
     req.user = user;
     next();
-  });
+  } catch (err) {
+    return res.status(403).json({ error: 'Token invalide' });
+  }
 }
 
 // Auth: Signup
@@ -77,8 +79,20 @@ app.get('/api/users', async (req, res) => {
 
 // Jobs
 app.get('/api/jobs', async (req, res) => {
-  const jobs = await prisma.job.findMany();
-  res.json(jobs);
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
+
+  const [jobs, totalCount] = await Promise.all([
+    prisma.job.findMany({
+      skip,
+      take: limit,
+      orderBy: { postedAt: 'desc' },
+    }),
+    prisma.job.count(),
+  ]);
+
+  res.json({ jobs, totalCount });
 });
 
 // Quizzes
@@ -139,6 +153,115 @@ app.get('/api/test', (req, res) => {
 
 app.post('/api/test', (req, res) => {
   res.json({ ok: true, msg: 'POST test route OK', body: req.body });
+});
+
+app.post('/api/jobs/:jobId/apply', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const jobId = Number(req.params.jobId);
+  const { message } = req.body;
+  try {
+    const application = await prisma.application.create({
+      data: { userId, jobId, message },
+    });
+    res.json(application);
+  } catch (e) {
+    res.status(400).json({ error: 'Erreur lors de la candidature', details: e.message });
+  }
+});
+
+app.get('/api/profile', authenticateToken, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    include: { profile: true },
+  });
+
+  // Récupère toutes les candidatures de l'utilisateur
+  const applications = await prisma.application.findMany({
+    where: { userId: req.user.id },
+    include: { job: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Nombre total
+  const total = applications.length;
+  // 5 dernières
+  const lastApplications = applications.slice(0, 5).map(app => ({
+    id: app.id,
+    job: app.job ? { id: app.job.id, title: app.job.title, company: app.job.company } : null,
+    createdAt: app.createdAt,
+    message: app.message,
+  }));
+  // Stats par entreprise
+  const byCompany = {};
+  for (const app of applications) {
+    const company = app.job?.company || 'Inconnu';
+    byCompany[company] = (byCompany[company] || 0) + 1;
+  }
+  // Stats par mois (6 derniers mois)
+  const byMonth = {};
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    byMonth[key] = 0;
+  }
+  for (const app of applications) {
+    const d = new Date(app.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (byMonth[key] !== undefined) byMonth[key]++;
+  }
+
+  res.json({
+    ...user,
+    applicationsSummary: {
+      total,
+      lastApplications,
+      byCompany,
+      byMonth,
+    },
+  });
+});
+
+app.get('/api/applications', authenticateToken, async (req, res) => {
+  const userId = req.query.userId || req.user.id;
+  const applications = await prisma.application.findMany({
+    where: { userId: userId },
+    include: { job: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(applications);
+});
+
+app.post('/api/profile', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { firstName, lastName, email, phone, location, title, bio, skills, experience, education, preferences } = req.body;
+  // Vérifie si le profil existe déjà
+  const existing = await prisma.profile.findUnique({ where: { userId } });
+  if (existing) return res.status(400).json({ error: 'Profil déjà existant' });
+  // Met à jour l'email si besoin
+  if (email) {
+    await prisma.user.update({ where: { id: userId }, data: { email } });
+  }
+  // Crée le profil
+  const profile = await prisma.profile.create({
+    data: {
+      userId,
+      firstName,
+      lastName,
+      role: 'USER',
+      settings: {
+        phone,
+        location,
+        title,
+        bio,
+        skills: skills || [],
+        experience: experience || [],
+        education: education || [],
+        preferences: preferences || { jobAlerts: true, publicProfile: true, newsletterSubscribed: false },
+      },
+    },
+  });
+  res.json(profile);
 });
 
 app.listen(PORT, () => {

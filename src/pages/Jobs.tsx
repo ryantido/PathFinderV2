@@ -10,6 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/context/authStore";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Job {
   id: number;
@@ -103,16 +105,16 @@ const Jobs = () => {
   const [typeFilter, setTypeFilter] = useState("all");
 
   // Mapping jobs + favoris
-  const jobs = jobsQuery.data?.map((job) => ({
+  const jobs = (jobsQuery.data?.jobs || jobsQuery.data || []).map((job) => ({
     id: job.id,
     title: job.title,
     company: job.company,
     location: job.location,
-    type: job.salary_range || "CDI", // fallback
-    salary: job.salary_range || "-",
+    type: job.salary_range || job.salaryRange || "CDI", // fallback
+    salary: job.salary_range || job.salaryRange || "-",
     description: job.description,
     skills: job.tags || [],
-    postedDate: job.posted_at,
+    postedDate: job.posted_at || job.postedAt,
     isRemote: job.location?.toLowerCase().includes("remote") || false,
     isFavorite: favoritesQuery.data?.includes(job.id) || false,
   })) || [];
@@ -147,6 +149,33 @@ const Jobs = () => {
       addFavorite.mutate(jobId);
     }
   };
+
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState("");
+
+  // Ajoute la mutation de postulation
+  const applyMutation = useMutation({
+    mutationFn: async ({ jobId, message }: { jobId: number; message: string }) => {
+      if (!user) throw new Error("Non authentifié");
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/jobs/${jobId}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) throw new Error("Erreur lors de la candidature");
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Candidature envoyée !", description: "Votre candidature a bien été prise en compte." });
+      setShowApplyModal(false);
+      setApplicationMessage("");
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible d'envoyer la candidature.", variant: "destructive" });
+    },
+  });
 
   if (jobsQuery.isLoading || favoritesQuery.isLoading) {
     return (
@@ -321,12 +350,11 @@ const Jobs = () => {
                     </div>
 
                     <div className="flex flex-col space-y-2 lg:ml-6 mt-4 lg:mt-0">
-                      <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                        Postuler
-                        <ExternalLink className="ml-2 w-4 h-4" />
+                      <Button onClick={() => setSelectedJob(job)} variant="outline" className="ml-2">
+                        <ExternalLink className="w-4 h-4 mr-1" /> Détails
                       </Button>
-                      <Button variant="outline">
-                        Voir les détails
+                      <Button onClick={() => setShowApplyModal(true)} className="ml-2">
+                        Postuler
                       </Button>
                     </div>
                   </div>
@@ -361,6 +389,44 @@ const Jobs = () => {
             </Button>
           </motion.div>
         )}
+
+        {/* Modal de détails */}
+        <Dialog open={!!selectedJob} onOpenChange={() => setSelectedJob(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{selectedJob?.title}</DialogTitle>
+            </DialogHeader>
+            <p><b>Entreprise :</b> {selectedJob?.company}</p>
+            <p><b>Lieu :</b> {selectedJob?.location}</p>
+            <p><b>Salaire :</b> {selectedJob?.salary}</p>
+            <p><b>Description :</b> {selectedJob?.description}</p>
+            <p><b>Compétences :</b> {selectedJob?.skills?.join(', ')}</p>
+            <DialogFooter>
+              <Button onClick={() => setSelectedJob(null)}>Fermer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de postulation */}
+        <Dialog open={showApplyModal} onOpenChange={setShowApplyModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Postuler à l'offre</DialogTitle>
+            </DialogHeader>
+            <Textarea
+              value={applicationMessage}
+              onChange={e => setApplicationMessage(e.target.value)}
+              placeholder="Message au recruteur (optionnel)"
+              className="w-full border rounded p-2 mb-2"
+            />
+            <DialogFooter>
+              <Button type="button" onClick={() => applyMutation.mutate({ jobId: selectedJob?.id, message: applicationMessage })} disabled={applyMutation.isPending}>
+                Envoyer ma candidature
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setShowApplyModal(false)}>Annuler</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

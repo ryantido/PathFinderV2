@@ -21,6 +21,7 @@ model User {
   quizResults QuizResult[]
   favoriteJobs FavoriteJob[]
   createdAt  DateTime @default(now())
+  applications Application[]
 }
 
 model Profile {
@@ -44,6 +45,7 @@ model Job {
   postedAt    DateTime @default(now())
   createdBy   String?
   favoriteJobs FavoriteJob[]
+  applications Application[]
 }
 
 model FavoriteJob {
@@ -82,5 +84,15 @@ model QuizResult {
   userId    String
   resultData Json
   score     Int
+  createdAt DateTime @default(now())
+}
+
+model Application {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  job       Job      @relation(fields: [jobId], references: [id])
+  jobId     Int
+  message   String?
   createdAt DateTime @default(now())
 }

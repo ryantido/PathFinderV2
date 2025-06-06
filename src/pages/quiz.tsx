@@ -50,6 +50,9 @@ const QuizPage = () => {
   if (quizzesQuery.isError) {
     return <div className="text-center text-red-500 py-20">Erreur lors du chargement des quiz.</div>;
   }
+  if (!quizzesQuery.data || quizzesQuery.data.length === 0) {
+    return <div className="text-center py-20">Aucun quiz disponible.</div>;
+  }
 
   if (showQuiz && selectedQuiz) {
     if (questionsQuery.isLoading) {

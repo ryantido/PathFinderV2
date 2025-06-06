@@ -1,22 +1,36 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Job } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Nettoyage de la base
+  await prisma.favoriteJob.deleteMany();
+  await prisma.application.deleteMany();
+  await prisma.quizResult.deleteMany();
+  await prisma.question.deleteMany();
+  await prisma.quiz.deleteMany();
+  await prisma.job.deleteMany();
+  await prisma.profile.deleteMany();
+  await prisma.user.deleteMany();
+
   // Utilisateurs
   const user = await prisma.user.create({
     data: {
-      email: 'alice@example.com',
+      email: 'testuser@example.com',
       password: 'hashedpassword',
       profile: {
         create: {
-          firstName: 'Alice',
-          lastName: 'Martin',
+          firstName: 'Test',
+          lastName: 'User',
           role: 'USER',
           settings: {
-            bio: 'Passionnée par le développement web',
+            bio: 'Utilisateur de test',
             location: 'Paris',
-            skills: ['React', 'TypeScript'],
+            skills: ['Test', 'React', 'Node'],
             preferences: { jobAlerts: true, publicProfile: true, newsletterSubscribed: false },
+            phone: '0600000000',
+            title: 'Développeur Test',
+            experience: [{ id: 1, title: 'Testeur', company: 'TestCorp', period: '2022-2024', description: 'Tests QA' }],
+            education: [{ id: 1, degree: 'Licence Test', school: 'TestFac', year: '2022' }],
           },
         },
       },
@@ -25,67 +39,58 @@ async function main() {
   });
 
   // Jobs
-  const job1 = await prisma.job.create({
-    data: {
-      title: 'Développeur Frontend React',
-      company: 'TechCorp',
-      location: 'Paris',
-      description: 'Développez des applications web modernes avec React.',
-      salaryRange: '45K - 55K €',
-      tags: ['React', 'TypeScript', 'JavaScript'],
-    },
-  });
-  const job2 = await prisma.job.create({
-    data: {
-      title: 'UX Designer',
-      company: 'DesignStudio',
-      location: 'Lyon',
-      description: 'Concevez des expériences utilisateur exceptionnelles.',
-      salaryRange: '50K - 60K €',
-      tags: ['Figma', 'Design', 'Prototypage'],
-    },
-  });
+  const jobs: any[] = [];
+  for (let i = 1; i <= 20; i++) {
+    jobs.push(await prisma.job.create({
+      data: {
+        title: `Job ${i}`,
+        company: `Company ${i}`,
+        location: ['Paris', 'Lyon', 'Remote', 'Marseille', 'Bordeaux'][i % 5],
+        description: `Description du job ${i}`,
+        salaryRange: `${35 + i}K - ${45 + i}K €`,
+        tags: ["tag1", "tag2", i % 2 === 0 ? "remote" : "on-site"],
+        postedAt: new Date(),
+      },
+    }));
+  }
 
   // Quiz
-  const quiz = await prisma.quiz.create({
-    data: {
-      title: "Quiz d'Orientation Professionnelle",
-      description: 'Découvrez votre profil professionnel',
-      questions: {
-        create: [
-          {
-            text: 'Dans quel environnement préférez-vous travailler ?',
-            options: ['Bureau', 'Télétravail', 'Extérieur', 'Atelier'],
-            correct: null,
-          },
-          {
-            text: 'Quelle activité vous motive le plus ?',
-            options: ['Résoudre des problèmes', 'Créer', 'Aider', 'Organiser'],
-            correct: null,
-          },
-        ],
+  const quizIds: number[] = [];
+  for (let q = 1; q <= 10; q++) {
+    const quiz = await prisma.quiz.create({
+      data: {
+        title: `Quiz ${q}`,
+        description: `Description du quiz ${q}`,
+        createdAt: new Date(),
+        updatedAt: null,
       },
-    },
-    include: { questions: true },
-  });
-
-  // Résultat de quiz
-  await prisma.quizResult.create({
-    data: {
-      quizId: quiz.id,
-      userId: user.id,
-      resultData: { 1: 0, 2: 1 },
-      score: 2,
-    },
-  });
+    });
+    quizIds.push(quiz.id);
+    for (let j = 1; j <= 20; j++) {
+      await prisma.question.create({
+        data: {
+          quizId: quiz.id,
+          text: `Question ${j} du quiz ${q}`,
+          options: ["Option 1", "Option 2", "Option 3", "Option 4"],
+          correct: null,
+        },
+      });
+    }
+  }
 
   // Favoris
-  await prisma.favoriteJob.create({
-    data: {
-      userId: user.id,
-      jobId: job1.id,
-    },
-  });
+  await prisma.favoriteJob.create({ data: { userId: user.id, jobId: jobs[0].id } });
+  await prisma.favoriteJob.create({ data: { userId: user.id, jobId: jobs[1].id } });
+
+  // Résultats de quiz
+  await prisma.quizResult.create({ data: { quizId: quizIds[0], userId: user.id, resultData: { 1: 2, 2: 1 }, score: 15 } });
+  await prisma.quizResult.create({ data: { quizId: quizIds[1], userId: user.id, resultData: { 1: 0, 2: 2 }, score: 12 } });
+
+  // Vérification
+  const jobCount = await prisma.job.count();
+  const quizCount = await prisma.quiz.count();
+  const questionCount = await prisma.question.count();
+  console.log(`Seed terminé : ${jobCount} jobs, ${quizCount} quiz, ${questionCount} questions.`);
 }
 
 main()

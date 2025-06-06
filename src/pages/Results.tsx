@@ -9,6 +9,9 @@ import { Link, useParams } from "react-router-dom";
 import { useQuizStore } from "@/context/quizStore";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "@/context/authStore";
+import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 
 interface CareerMatch {
   id: number;
@@ -24,6 +27,8 @@ interface CareerMatch {
 const Results = () => {
   const { quizId } = useParams();
   const { user } = useAuthStore();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Charger le résultat du quiz
   const resultQuery = useQuery({
@@ -81,6 +86,32 @@ const Results = () => {
     },
   });
 
+  const [applyJobId, setApplyJobId] = useState<number | null>(null);
+  const [applicationMessage, setApplicationMessage] = useState("");
+  const [showApplyModal, setShowApplyModal] = useState(false);
+
+  const applyMutation = useMutation({
+    mutationFn: async ({ jobId, message }: { jobId: number; message: string }) => {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/jobs/${jobId}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) throw new Error("Erreur lors de la candidature");
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Candidature envoyée !", description: "Votre candidature a bien été prise en compte." });
+      setApplyJobId(null);
+      setApplicationMessage("");
+      setShowApplyModal(true);
+    },
+    onError: () => {
+      toast({ title: "Erreur", description: "Impossible d'envoyer la candidature.", variant: "destructive" });
+    },
+  });
+
   if (resultQuery.isLoading || jobsQuery.isLoading || questionsQuery.isLoading) {
     return <div className="text-center py-20">Analyse de votre profil en cours...</div>;
   }
@@ -88,36 +119,30 @@ const Results = () => {
     return <div className="text-center text-red-500 py-20">Erreur lors du chargement des résultats.</div>;
   }
 
-  // Analyse probabiliste (exemple simplifié)
-  const answers = resultQuery.data.result_data || {};
-  const questions = questionsQuery.data;
-  const jobs = jobsQuery.data;
+  // Matching avancé : score chaque job selon la correspondance des tags
+  const questions = questionsQuery.data || [];
+  const answers = resultQuery.data?.resultData || {};
 
-  // Exemple d'analyse : score de correspondance par métier selon les réponses
-  // (À remplacer par une vraie étude probabiliste/statistique)
-  const jobScores = jobs.map((job) => {
-    // On simule une correspondance en fonction des tags du job et des réponses
-    let match = 0;
-    questions.forEach((q) => {
-      const answerIdx = answers[q.id];
-      if (answerIdx !== undefined && job.tags && job.tags.length > 0) {
-        // Si le tag du job correspond à une option de la question choisie, on augmente le score
-        const option = q.options[answerIdx];
-        if (option && job.tags.some((tag) => option.toLowerCase().includes(tag.toLowerCase()))) {
-          match += 1;
-        }
+  function computeJobScore(job: any) {
+    let score = 0;
+    questions.forEach((q: any, idx: number) => {
+      const answerIdx = answers[idx + 1];
+      if (answerIdx === undefined) return;
+      const answerTag = q.tags ? q.tags[answerIdx] : null;
+      if (answerTag && job.tags && job.tags.includes(answerTag)) {
+        score++;
       }
     });
-    // Score probabiliste (exemple) : proportion de questions où il y a match
-    const matchPercentage = Math.round((match / questions.length) * 100);
-    return {
-      ...job,
-      matchPercentage,
-    };
-  });
+    return score;
+  }
 
-  // Trier les jobs par score décroissant
-  const sortedJobs = jobScores.sort((a, b) => b.matchPercentage - a.matchPercentage).slice(0, 3);
+  const jobsRaw = jobsQuery.data && Array.isArray(jobsQuery.data.jobs) ? jobsQuery.data.jobs : [];
+  const jobsWithScore = jobsRaw.map((job: any) => ({
+    ...job,
+    score: computeJobScore(job),
+  }));
+
+  const sortedJobs = jobsWithScore.sort((a, b) => b.score - a.score);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -172,7 +197,7 @@ const Results = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-3xl font-bold text-green-600 mb-1">
-                        {job.matchPercentage}%
+                        {job.score}
                       </div>
                       <div className="text-sm text-slate-500">de compatibilité</div>
                     </div>
@@ -181,9 +206,9 @@ const Results = () => {
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-slate-700">Compatibilité</span>
-                      <span className="text-sm text-slate-500">{job.matchPercentage}%</span>
+                      <span className="text-sm text-slate-500">{job.score}</span>
                     </div>
-                    <Progress value={job.matchPercentage} className="h-2" />
+                    <Progress value={job.score} className="h-2" />
                   </div>
                 </CardHeader>
                 
@@ -211,7 +236,7 @@ const Results = () => {
                       </div>
                       <div>
                         <div className="font-semibold text-slate-800">Salaire moyen</div>
-                        <div className="text-slate-600">{job.salary_range || '-'}</div>
+                        <div className="text-slate-600">{job.salaryRange || '-'}</div>
                       </div>
                     </div>
                   </div>
@@ -228,6 +253,29 @@ const Results = () => {
                       En savoir plus
                     </Button>
                   </div>
+
+                  <Button onClick={() => setApplyJobId(job.id)} disabled={applyMutation.isPending}>
+                    Postuler
+                  </Button>
+                  {applyJobId === job.id && (
+                    <form onSubmit={e => {
+                      e.preventDefault();
+                      applyMutation.mutate({ jobId: job.id, message: applicationMessage });
+                    }} className="mt-2">
+                      <textarea
+                        value={applicationMessage}
+                        onChange={e => setApplicationMessage(e.target.value)}
+                        placeholder="Message au recruteur (optionnel)"
+                        className="w-full border rounded p-2 mb-2"
+                      />
+                      <Button type="submit" disabled={applyMutation.isPending}>
+                        Confirmer ma candidature
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setApplyJobId(null)}>
+                        Annuler
+                      </Button>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
@@ -265,6 +313,19 @@ const Results = () => {
           </Card>
         </motion.div>
       </div>
+
+      <Dialog open={showApplyModal} onOpenChange={setShowApplyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Candidature envoyée !</DialogTitle>
+          </DialogHeader>
+          <p>Votre candidature a bien été prise en compte. Vous pouvez consulter vos candidatures ou explorer d'autres offres.</p>
+          <DialogFooter>
+            <Button onClick={() => { setShowApplyModal(false); navigate('/profile'); }}>Voir mes candidatures</Button>
+            <Button variant="ghost" onClick={() => setShowApplyModal(false)}>Retour aux offres</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

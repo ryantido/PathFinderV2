@@ -105,7 +105,11 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                  <DropdownMenuItem onClick={() => {
+                    localStorage.removeItem('token');
+                    logout();
+                    navigate('/login');
+                  }} className="text-red-600">
                     <LogOut className="w-4 h-4 mr-2" />
                     <span>Déconnexion</span>
                   </DropdownMenuItem>
@@ -178,7 +182,9 @@ const Navbar = () => {
                   </Link>
                   <button
                     onClick={() => {
-                      handleLogout();
+                      localStorage.removeItem('token');
+                      logout();
+                      navigate('/login');
                       setMobileMenuOpen(false);
                     }}
                     className="block w-full text-left px-2 py-1 text-red-600 hover:text-red-700"
