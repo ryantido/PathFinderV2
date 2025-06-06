@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Target, Menu, X, User, Briefcase, Settings, LogOut } from "lucide-react";
@@ -12,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/context/authStore";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const Navbar = () => {
@@ -23,21 +21,11 @@ const Navbar = () => {
   const { toast } = useToast();
 
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      logout();
-      toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt sur Pathfinder Job !",
-      });
-      navigate("/");
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la déconnexion",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Déconnexion réussie",
+      description: "À bientôt sur Pathfinder Job !",
+    });
+    navigate("/");
   };
 
   const navigationItems = [
@@ -47,21 +35,22 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="bg-white/95 backdrop-blur-md border-b border-slate-200/50 sticky top-0 z-50">
+    <nav className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-slate-200/60 sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/">
             <motion.div 
-              className="flex items-center space-x-2 cursor-pointer"
+              className="flex items-center space-x-2 cursor-pointer select-none"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Target className="w-4 h-4 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md">
+                <Target className="w-5 h-5 text-white drop-shadow" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                PATHFINDER JOB
+              <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent tracking-tight drop-shadow">
+                Pathfinder
+                <span className="text-base align-super font-bold text-purple-600">Job</span>
               </span>
             </motion.div>
           </Link>
@@ -71,11 +60,13 @@ const Navbar = () => {
             {navigationItems.map((item) => (
               <Link key={item.href} to={item.href}>
                 <motion.span
-                  className={`text-slate-600 hover:text-blue-600 font-medium transition-colors cursor-pointer ${
-                    location.pathname === item.href ? "text-blue-600" : ""
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    location.pathname === item.href
+                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow"
+                      : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                   }`}
-                  whileHover={{ y: -2 }}
-                  transition={{ duration: 0.2 }}
+                  whileHover={{ y: -2, scale: 1.08 }}
+                  transition={{ duration: 0.18 }}
                 >
                   {item.label}
                 </motion.span>

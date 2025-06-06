@@ -1,6 +1,5 @@
-
 import { Target, Mail, Phone, MapPin } from "lucide-react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -42,22 +41,22 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">Navigation</h3>
             <ul className="space-y-2 text-slate-400">
               <li>
-                <Link href="/" className="hover:text-white transition-colors">
+                <Link to="/" className="hover:text-white transition-colors">
                   Accueil
                 </Link>
               </li>
               <li>
-                <Link href="/quiz" className="hover:text-white transition-colors">
+                <Link to="/quiz" className="hover:text-white transition-colors">
                   Quiz d'Orientation
                 </Link>
               </li>
               <li>
-                <Link href="/jobs" className="hover:text-white transition-colors">
+                <Link to="/jobs" className="hover:text-white transition-colors">
                   Offres d'Emploi
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="hover:text-white transition-colors">
+                <Link to="/about" className="hover:text-white transition-colors">
                   À Propos
                 </Link>
               </li>
@@ -69,22 +68,22 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">Support</h3>
             <ul className="space-y-2 text-slate-400">
               <li>
-                <Link href="/help" className="hover:text-white transition-colors">
+                <Link to="/help" className="hover:text-white transition-colors">
                   Centre d'Aide
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="hover:text-white transition-colors">
+                <Link to="/contact" className="hover:text-white transition-colors">
                   Nous Contacter
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-white transition-colors">
+                <Link to="/privacy" className="hover:text-white transition-colors">
                   Politique de Confidentialité
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-white transition-colors">
+                <Link to="/terms" className="hover:text-white transition-colors">
                   Conditions d'Utilisation
                 </Link>
               </li>

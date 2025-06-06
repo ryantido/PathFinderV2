@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Target, ArrowRight, Mail, Lock } from "lucide-react";
@@ -10,7 +9,6 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/context/authStore";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 interface LoginForm {
   email: string;
@@ -32,84 +30,42 @@ const Login = () => {
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
-    
     try {
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      const res = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
       });
-
-      if (error) {
+      const result = await res.json();
+      if (!res.ok) {
         toast({
           title: "Erreur de connexion",
-          description: error.message,
+          description: result.error || "Erreur inconnue",
           variant: "destructive",
         });
         setIsLoading(false);
         return;
       }
-
-      if (authData.user) {
-        // Récupérer le profil depuis la table profiles
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', authData.user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Erreur lors de la récupération du profil:', profileError);
-          // Créer un profil par défaut si nécessaire
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: authData.user.id,
-              first_name: authData.user.user_metadata?.first_name || 'Utilisateur',
-              last_name: authData.user.user_metadata?.last_name || '',
-              role: 'USER',
-              settings: {}
-            });
-
-          if (!insertError) {
-            // Récupérer le profil nouvellement créé
-            const { data: newProfileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', authData.user.id)
-              .single();
-
-            if (newProfileData) {
-              const user = {
-                id: authData.user.id,
-                email: authData.user.email!,
-                firstName: newProfileData.first_name,
-                lastName: newProfileData.last_name,
-                role: newProfileData.role as 'USER' | 'ADMIN',
-                settings: newProfileData.settings || { privateMode: false },
-              };
-              login(user);
-            }
-          }
-        } else {
-          const user = {
-            id: authData.user.id,
-            email: authData.user.email!,
-            firstName: profileData.first_name,
-            lastName: profileData.last_name,
-            role: profileData.role as 'USER' | 'ADMIN',
-            settings: profileData.settings || { privateMode: false },
-          };
-          login(user);
-        }
-
-        toast({
-          title: "Connexion réussie",
-          description: "Bienvenue sur Pathfinder Job !",
-        });
-        navigate("/");
-      }
+      // Stocke le user dans le store (ajuste selon ta logique)
+      login({
+        id: result.user.id,
+        email: result.user.email,
+        firstName: result.user.profile.firstName,
+        lastName: result.user.profile.lastName,
+        role: result.user.profile.role || 'USER',
+        settings: result.user.profile.settings || { privateMode: false },
+      });
+      // Stocke le token dans le localStorage si besoin
+      localStorage.setItem('token', result.token);
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue !",
+      });
+      navigate("/");
     } catch (error) {
-      console.error('Erreur lors de la connexion:', error);
       toast({
         title: "Erreur",
         description: "Une erreur inattendue s'est produite",

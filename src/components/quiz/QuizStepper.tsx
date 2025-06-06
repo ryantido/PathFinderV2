@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, CheckCircle, Circle } from "lucide-react";
@@ -7,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useQuizStore } from "@/context/quizStore";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
+import { useAuthStore } from "@/context/authStore";
 
 interface Question {
   id: number;
@@ -27,8 +28,31 @@ const QuizStepper = ({ questions, quizId }: Props) => {
     setCurrentQuestionIndex,
     resetQuiz 
   } = useQuizStore();
-  
+  const { user } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Calcul du score (exemple simple, à adapter pour analyse probabiliste)
+  const score = Object.keys(answers).length;
+
+  // Mutation pour enregistrer le résultat
+  const saveResult = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Non authentifié");
+      const token = localStorage.getItem('token');
+      const res = await fetch("http://localhost:4000/api/quizResults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          quizId,
+          userId: user.id,
+          resultData: answers,
+          score: score,
+        }),
+      });
+      if (!res.ok) throw new Error("Erreur lors de l'enregistrement du résultat");
+      return await res.json();
+    },
+  });
 
   useEffect(() => {
     resetQuiz();
@@ -58,13 +82,10 @@ const QuizStepper = ({ questions, quizId }: Props) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const result = await saveResult.mutateAsync();
       toast.success("Quiz terminé avec succès !");
-      
-      // Navigate to results
-      window.location.href = `/results/${quizId}`;
+      // Redirige vers la page de résultats avec l'ID du résultat
+      window.location.href = `/results/${result.id}`;
     } catch (error) {
       toast.error("Erreur lors de la soumission du quiz");
       setIsSubmitting(false);

@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Users, Target, Briefcase, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
@@ -38,45 +37,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <motion.div 
-              className="flex items-center space-x-2"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Target className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                PATHFINDER JOB
-              </span>
-            </motion.div>
-            
-            <motion.div 
-              className="flex items-center space-x-4"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Link href="/login" passHref>
-                <Button variant="ghost" className="text-slate-600 hover:text-blue-600">
-                  Connexion
-                </Button>
-              </Link>
-              <Link href="/signup" passHref>
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  S'inscrire
-                </Button>
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </nav>
-
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center max-w-4xl mx-auto">
@@ -104,7 +64,7 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <Link href="/quiz" passHref>
+            <Link to="/quiz">
               <Button 
                 size="lg" 
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8 py-4 group"
@@ -211,7 +171,7 @@ const Index = () => {
             Rejoignez des milliers de professionnels qui ont transformé leur carrière grâce à Pathfinder Job
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/quiz" passHref>
+            <Link to="/quiz">
               <Button 
                 size="lg"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -219,7 +179,7 @@ const Index = () => {
                 Commencer Maintenant
               </Button>
             </Link>
-            <Link href="/jobs" passHref>
+            <Link to="/jobs">
               <Button 
                 size="lg" 
                 variant="outline"

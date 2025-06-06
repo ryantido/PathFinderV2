@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, MapPin, Clock, Briefcase, Filter, Heart, ExternalLink, Building2 } from "lucide-react";
@@ -8,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/context/authStore";
+import { useToast } from "@/hooks/use-toast";
 
 interface Job {
   id: number;
@@ -24,136 +26,143 @@ interface Job {
 }
 
 const Jobs = () => {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const { user } = useAuthStore();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch jobs from API
+  const jobsQuery = useQuery({
+    queryKey: ["jobs"],
+    queryFn: async () => {
+      const res = await fetch("http://localhost:4000/api/jobs");
+      if (!res.ok) throw new Error("Erreur lors du chargement des jobs");
+      return await res.json();
+    },
+  });
+
+  // Fetch favorites for current user
+  const favoritesQuery = useQuery({
+    queryKey: ["favorite_jobs", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return [];
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/users/${user.id}/favorites`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erreur lors du chargement des favoris");
+      const data = await res.json();
+      return data.map((fav: any) => fav.jobId);
+    },
+  });
+
+  // Add favorite
+  const addFavorite = useMutation({
+    mutationFn: async (jobId: number) => {
+      if (!user) throw new Error("Non authentifié");
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/users/${user.id}/favorites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ jobId }),
+      });
+      if (!res.ok) throw new Error("Erreur lors de l'ajout du favori");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favorite_jobs", user?.id] });
+      toast({ title: "Ajouté aux favoris" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors de l'ajout du favori", variant: "destructive" });
+    },
+  });
+
+  // Remove favorite
+  const removeFavorite = useMutation({
+    mutationFn: async (jobId: number) => {
+      if (!user) throw new Error("Non authentifié");
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:4000/api/users/${user.id}/favorites/${jobId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erreur lors du retrait du favori");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favorite_jobs", user?.id] });
+      toast({ title: "Retiré des favoris" });
+    },
+    onError: () => {
+      toast({ title: "Erreur lors du retrait du favori", variant: "destructive" });
+    },
+  });
+
+  // Filtres et recherche
   const [searchTerm, setSearchTerm] = useState("");
   const [locationFilter, setLocationFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulation du chargement des offres d'emploi
-    setTimeout(() => {
-      const mockJobs: Job[] = [
-        {
-          id: 1,
-          title: "Développeur Frontend React",
-          company: "TechCorp",
-          location: "Paris",
-          type: "CDI",
-          salary: "45K - 55K €",
-          description: "Rejoignez notre équipe pour développer des applications web modernes avec React et TypeScript.",
-          skills: ["React", "TypeScript", "Tailwind CSS", "JavaScript"],
-          postedDate: "2024-01-15",
-          isRemote: true,
-          isFavorite: false
-        },
-        {
-          id: 2,
-          title: "UX Designer Senior",
-          company: "DesignStudio",
-          location: "Lyon",
-          type: "CDI",
-          salary: "50K - 60K €",
-          description: "Concevez des expériences utilisateur exceptionnelles pour nos produits digitaux.",
-          skills: ["Figma", "Sketch", "Prototypage", "Design System"],
-          postedDate: "2024-01-14",
-          isRemote: false,
-          isFavorite: false
-        },
-        {
-          id: 3,
-          title: "Chef de Projet Digital",
-          company: "Innovation Lab",
-          location: "Marseille",
-          type: "CDI",
-          salary: "55K - 65K €",
-          description: "Pilotez des projets innovants et coordonnez des équipes pluridisciplinaires.",
-          skills: ["Agile", "Scrum", "Leadership", "Communication"],
-          postedDate: "2024-01-13",
-          isRemote: true,
-          isFavorite: false
-        },
-        {
-          id: 4,
-          title: "Data Scientist",
-          company: "DataCorp",
-          location: "Toulouse",
-          type: "CDD",
-          salary: "50K - 70K €",
-          description: "Analysez des données complexes pour extraire des insights business stratégiques.",
-          skills: ["Python", "Machine Learning", "SQL", "Data Viz"],
-          postedDate: "2024-01-12",
-          isRemote: true,
-          isFavorite: false
-        },
-        {
-          id: 5,
-          title: "Product Manager",
-          company: "StartupX",
-          location: "Bordeaux",
-          type: "CDI",
-          salary: "60K - 75K €",
-          description: "Définissez la stratégie produit et coordonnez le développement de nouvelles fonctionnalités.",
-          skills: ["Product Strategy", "Analytics", "User Research", "Roadmap"],
-          postedDate: "2024-01-11",
-          isRemote: false,
-          isFavorite: false
-        }
-      ];
-      setJobs(mockJobs);
-      setFilteredJobs(mockJobs);
-      setIsLoading(false);
-    }, 1500);
-  }, []);
+  // Mapping jobs + favoris
+  const jobs = jobsQuery.data?.map((job) => ({
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    type: job.salary_range || "CDI", // fallback
+    salary: job.salary_range || "-",
+    description: job.description,
+    skills: job.tags || [],
+    postedDate: job.posted_at,
+    isRemote: job.location?.toLowerCase().includes("remote") || false,
+    isFavorite: favoritesQuery.data?.includes(job.id) || false,
+  })) || [];
 
-  useEffect(() => {
-    let filtered = jobs;
-
+  // Filtres
+  const filteredJobs = jobs.filter((job) => {
+    let match = true;
     if (searchTerm) {
-      filtered = filtered.filter(job =>
+      match =
         job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+        job.skills.some((skill) => skill.toLowerCase().includes(searchTerm.toLowerCase()));
     }
-
-    if (locationFilter !== "all") {
-      filtered = filtered.filter(job => 
-        locationFilter === "remote" ? job.isRemote : job.location === locationFilter
-      );
+    if (match && locationFilter !== "all") {
+      match = locationFilter === "remote" ? job.isRemote : job.location === locationFilter;
     }
-
-    if (typeFilter !== "all") {
-      filtered = filtered.filter(job => job.type === typeFilter);
+    if (match && typeFilter !== "all") {
+      match = job.type === typeFilter;
     }
+    return match;
+  });
 
-    setFilteredJobs(filtered);
-  }, [searchTerm, locationFilter, typeFilter, jobs]);
-
-  const toggleFavorite = (jobId: number) => {
-    setJobs(jobs.map(job => 
-      job.id === jobId ? { ...job, isFavorite: !job.isFavorite } : job
-    ));
+  // Gestion favoris
+  const handleToggleFavorite = (jobId: number, isFavorite: boolean) => {
+    if (!user) {
+      toast({ title: "Connectez-vous pour gérer vos favoris", variant: "destructive" });
+      return;
+    }
+    if (isFavorite) {
+      removeFavorite.mutate(jobId);
+    } else {
+      addFavorite.mutate(jobId);
+    }
   };
 
-  if (isLoading) {
+  if (jobsQuery.isLoading || favoritesQuery.isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <motion.div 
-          className="text-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
+        <motion.div className="text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <Briefcase className="w-8 h-8 text-white animate-pulse" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-4">
-            Chargement des offres...
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Chargement des offres...</h2>
         </motion.div>
       </div>
     );
+  }
+
+  if (jobsQuery.isError || favoritesQuery.isError) {
+    return <div className="text-center text-red-500 py-10">Erreur lors du chargement des offres.</div>;
   }
 
   return (
@@ -279,7 +288,7 @@ const Jobs = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => toggleFavorite(job.id)}
+                          onClick={() => handleToggleFavorite(job.id, job.isFavorite)}
                           className={`${job.isFavorite ? 'text-red-500' : 'text-slate-400'} hover:text-red-500`}
                         >
                           <Heart className={`w-5 h-5 ${job.isFavorite ? 'fill-current' : ''}`} />

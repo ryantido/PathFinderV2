@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Target, ArrowRight, Mail, Lock, User } from "lucide-react";
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SignupForm {
   firstName: string;
@@ -37,53 +35,33 @@ const Signup = () => {
 
   const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
-    
     try {
-      const { data: authData, error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
-          }
-        }
+      const res = await fetch("http://localhost:4000/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+        }),
       });
-
-      if (error) {
+      const result = await res.json();
+      if (!res.ok) {
         toast({
           title: "Erreur lors de l'inscription",
-          description: error.message,
+          description: result.error || "Erreur inconnue",
           variant: "destructive",
         });
         setIsLoading(false);
         return;
       }
-
-      if (authData.user) {
-        // Créer le profil dans la table profiles
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: authData.user.id,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            role: 'USER',
-            settings: { privateMode: false }
-          });
-
-        if (profileError) {
-          console.error('Erreur lors de la création du profil:', profileError);
-        }
-
-        toast({
-          title: "Compte créé avec succès",
-          description: "Vérifiez votre email pour confirmer votre compte, puis connectez-vous.",
-        });
-        navigate("/login");
-      }
+      toast({
+        title: "Compte créé avec succès",
+        description: "Vous pouvez maintenant vous connecter.",
+      });
+      navigate("/login");
     } catch (error) {
-      console.error('Erreur lors de l\'inscription:', error);
       toast({
         title: "Erreur",
         description: "Une erreur inattendue s'est produite",

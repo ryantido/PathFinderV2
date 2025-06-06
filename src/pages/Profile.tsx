@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Edit3, Save, Camera, Download } from "lucide-react";
@@ -13,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/context/authStore";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface ProfileData {
   firstName: string;
@@ -49,57 +49,72 @@ interface Education {
 
 const Profile = () => {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState<ProfileData>({
-    firstName: user?.firstName || "John",
-    lastName: user?.lastName || "Doe",
-    email: user?.email || "john.doe@example.com",
-    phone: "+33 6 12 34 56 78",
-    location: "Paris, France",
-    title: "Développeur Full Stack",
-    bio: "Passionné par le développement web moderne et les nouvelles technologies. J'aime créer des applications innovantes qui résolvent des problèmes concrets.",
-    skills: ["React", "TypeScript", "Node.js", "Python", "AWS", "Docker"],
-    experience: [
-      {
-        id: 1,
-        title: "Développeur Senior",
-        company: "TechCorp",
-        period: "2022 - Présent",
-        description: "Développement d'applications web complexes avec React et Node.js"
-      },
-      {
-        id: 2,
-        title: "Développeur Frontend",
-        company: "StartupX",
-        period: "2020 - 2022",
-        description: "Création d'interfaces utilisateur modernes et responsives"
-      }
-    ],
-    education: [
-      {
-        id: 1,
-        degree: "Master en Informatique",
-        school: "École Supérieure d'Informatique",
-        year: "2020"
-      },
-      {
-        id: 2,
-        degree: "Licence Informatique",
-        school: "Université de Paris",
-        year: "2018"
-      }
-    ],
-    preferences: {
-      jobAlerts: true,
-      publicProfile: true,
-      newsletterSubscribed: false
-    }
+  const [profileData, setProfileData] = useState<any>(null);
+
+  // Charger le profil depuis l'API
+  const profileQuery = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return null;
+      const res = await fetch(`http://localhost:4000/api/users`);
+      if (!res.ok) throw new Error("Erreur lors du chargement du profil");
+      const users = await res.json();
+      const data = users.find((u: any) => u.id === user.id);
+      return data?.profile;
+    },
+    onSuccess: (data) => {
+      if (!data) return;
+      setProfileData({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: user.email,
+        phone: data.settings?.phone || "",
+        location: data.settings?.location || "",
+        title: data.settings?.title || "",
+        bio: data.settings?.bio || "",
+        skills: data.settings?.skills || [],
+        experience: data.settings?.experience || [],
+        education: data.settings?.education || [],
+        preferences: data.settings?.preferences || {
+          jobAlerts: true,
+          publicProfile: true,
+          newsletterSubscribed: false,
+        },
+      });
+    },
   });
 
+  // Mutation pour sauvegarder le profil (à adapter selon l'API)
+  const saveProfile = useMutation({
+    mutationFn: async (newProfile: any) => {
+      if (!user) throw new Error("Non authentifié");
+      // Ici, il faudrait une route PATCH/PUT sur l'API Express pour mettre à jour le profil
+      // Exemple : await fetch(`http://localhost:4000/api/users/${user.id}/profile`, ...)
+      // Pour l'instant, on simule le succès
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      setIsEditing(false);
+      toast.success("Profil mis à jour avec succès !");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la sauvegarde du profil");
+    },
+  });
+
+  if (profileQuery.isLoading || !profileData) {
+    return <div className="text-center py-20">Chargement du profil...</div>;
+  }
+  if (profileQuery.isError) {
+    return <div className="text-center text-red-500 py-20">Erreur lors du chargement du profil.</div>;
+  }
+
   const handleSave = () => {
-    // Simulation de la sauvegarde
-    toast.success("Profil mis à jour avec succès !");
-    setIsEditing(false);
+    saveProfile.mutate(profileData);
   };
 
   const handleSkillAdd = (newSkill: string) => {
