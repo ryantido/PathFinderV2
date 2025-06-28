@@ -1,11 +1,3 @@
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-console.log('CODE PATH:', __filename);
-console.log('TEST LOG UNIQUE');
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
@@ -34,6 +26,10 @@ function authenticateToken(req, res, next) {
     return res.status(403).json({ error: 'Token invalide' });
   }
 }
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Bienvenue sur l\'API PathFinder' });
+});
 
 // Auth: Signup
 app.post('/api/auth/signup', async (req, res) => {
@@ -265,5 +261,6 @@ app.post('/api/profile', authenticateToken, async (req, res) => {
 });
 
 app.listen(PORT, () => {
+  console.log(`API server started on port ${PORT}`);
   console.log(`API server running on http://localhost:${PORT}`);
 }); 

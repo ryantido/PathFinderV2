@@ -61,7 +61,7 @@ npx prisma db seed
 ### 5. Lancer le backend (API Express)
 
 ```bash
-npx ts-node api/index.ts
+bun run api
 ```
 
 ### 6. Lancer le frontend (Vite)
