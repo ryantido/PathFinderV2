@@ -30,35 +30,42 @@
 ## ⚡ Installation & configuration
 
 ### 1. Cloner le repo
+
 ```bash
-git clone <repo-url>
+git clone https://github.com/ryantido/PathFinderV2.git
 cd pathfinder-job-seeker
 ```
 
 ### 2. Installer les dépendances
+
 ```bash
 npm install
 ```
 
 ### 3. Configurer la base de données
+
 - Crée une base MySQL (ex : `pathFinder`)
 - Copie `.env.example` en `.env` et configure la variable `DATABASE_URL` :
+
   ```
   DATABASE_URL="mysql://user:password@localhost:3306/pathFinder"
   ```
 
 ### 4. Générer la base et injecter les données de test
+
 ```bash
 npx prisma migrate dev --name init
 npx prisma db seed
 ```
 
 ### 5. Lancer le backend (API Express)
+
 ```bash
 npx ts-node api/index.ts
 ```
 
 ### 6. Lancer le frontend (Vite)
+
 ```bash
 npm run dev
 ```
@@ -72,12 +79,14 @@ Un script bash (`e2e-test.sh`) permet de tester toute la chaîne (inscription, l
 ```bash
 ./e2e-test.sh
 ```
+
 - Le script s'arrête en cas d'erreur et affiche le détail de chaque étape.
 - Nécessite `jq` pour la validation JSON (`sudo apt install jq` si besoin).
 
 ---
 
 ## 🔒 Sécurité & bonnes pratiques
+
 - Authentification JWT (stateless, pas de session côté serveur)
 - Hash des mots de passe (bcrypt)
 - Middleware de protection des routes sensibles
@@ -87,6 +96,7 @@ Un script bash (`e2e-test.sh`) permet de tester toute la chaîne (inscription, l
 ---
 
 ## ✨ Fonctionnalités avancées
+
 - Matching intelligent entre quiz et métiers (scoring, tags)
 - Candidature à une offre avec message personnalisé
 - Gestion des favoris et du profil
@@ -106,6 +116,7 @@ e2e-test.sh    # Script de test E2E
 ---
 
 ## 📝 Personnalisation
+
 - Ajoutez/modifiez les questions du quiz dans `prisma/seed.ts`
 - Ajoutez des jobs, tags, ou enrichissez le matching dans le backend
 - Étendez le front pour afficher les candidatures, etc.
@@ -113,9 +124,11 @@ e2e-test.sh    # Script de test E2E
 ---
 
 ## 🤝 Contribution
+
 Pull requests et suggestions bienvenues !
 
 ---
 
 ## 📧 Contact
+
 Pour toute question, ouvrez une issue ou contactez l'auteur du repo.
